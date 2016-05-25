@@ -54,12 +54,28 @@ module.exports = function (superagent) {
    */
 
   Request.prototype.signOAuth = function () {
+    var req = this.request();;
+    var type = req.getHeader('Content-Type');
+    var extra_params = this._oauth_query;
+    if ('application/x-www-form-urlencoded' == type && isObject(this._data)) {
+      if(extra_params) {
+        // merge
+        var keys = Object.keys(this._data), key;
+        for (var i = 0; i < keys.length; i++) {
+          key = keys[i];
+          extra_params[key] = this._data[key];
+        }
+      } else {
+        extra_params = this._data;
+      }
+    }
+
     var params = this.oa._prepareParameters(
-        this.token
-      , this.secret
-      , this.method
-      , this.url
-      , this._data || this._oauth_query // XXX: what if there's query and body? merge?
+          this.token
+          , this.secret
+          , this.method
+          , this.url
+          , extra_params
     );
 
     var header = this.oa._isEcho
@@ -67,7 +83,7 @@ module.exports = function (superagent) {
           : 'Authorization'
       , signature = this.oa._buildAuthorizationHeaders(params)
 
-    this.set(header, signature);
+    req.setHeader(header, signature);
   };
 
   /**
@@ -90,7 +106,6 @@ module.exports = function (superagent) {
 
   Request.prototype.end = function () {
     this.end = oldEnd;
-
     if (this.oa && !this.oa._request) {
       this.signOAuth();
     }
